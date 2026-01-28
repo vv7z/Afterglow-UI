@@ -1,22 +1,195 @@
--- Afterglow UI Library - Smart LoadString Loader
+﻿-- Afterglow UI Library - Demo Loader
 -- Usage: local Afterglow = loadstring(game:HttpGet("https://raw.githubusercontent.com/vv7z/Afterglow-UI/main/loader.lua"))()
--- This loader automatically reads the manifest to discover all modules without hardcoding
+-- This loader reads the manifest, shows a themed loading UI, and opens a demo window
 
 local GITHUB_URL = "https://raw.githubusercontent.com/vv7z/Afterglow-UI/main"
-local DEBUG = true  -- Set to false to disable debug logging
+local DEBUG = false  -- Console output is reserved for errors only
 
--- Debug logging function
-local function debugLog(level, message)
-	if not DEBUG then return end
-	local timestamp = os.date("%H:%M:%S")
-	local prefix = "[Afterglow:" .. level .. "]" .. " (" .. timestamp .. ")"
-	if level == "ERROR" then
-		warn(prefix .. " " .. message)
-	elseif level == "WARN" then
-		warn(prefix .. " " .. message)
-	else
-		print(prefix .. " " .. message)
+-- Loader UI (simple, theme-aligned)
+local RunService = game:GetService("RunService")
+
+local LOADER_THEME = {
+	ACCENT = Color3.fromHex("#d177b0"),
+	PRIMARY_BG = Color3.fromRGB(20, 20, 20),
+	TERTIARY_BG = Color3.fromRGB(30, 30, 30),
+	STROKE = Color3.fromRGB(55, 55, 55),
+	TEXT_PRIMARY = Color3.fromRGB(200, 200, 200),
+	TEXT_SECONDARY = Color3.fromRGB(160, 160, 160),
+}
+
+local function resolveGuiParent()
+	if typeof(gethui) == "function" then
+		local ok, ui = pcall(gethui)
+		if ok and ui then
+			return ui
+		end
 	end
+
+	local okCore, coreGui = pcall(function()
+		return game:GetService("CoreGui")
+	end)
+	if okCore and coreGui then
+		return coreGui
+	end
+
+	local okPlayers, players = pcall(function()
+		return game:GetService("Players")
+	end)
+	if okPlayers and players and players.LocalPlayer then
+		return players.LocalPlayer:WaitForChild("PlayerGui")
+	end
+
+	return nil
+end
+
+local function createLoaderUi()
+	local guiParent = resolveGuiParent()
+	if not guiParent then
+		return nil
+	end
+
+	local screenGui = Instance.new("ScreenGui")
+	screenGui.Name = "AfterglowLoader"
+	screenGui.IgnoreGuiInset = true
+	screenGui.ResetOnSpawn = false
+	screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+	if syn and syn.protect_gui then
+		pcall(syn.protect_gui, screenGui)
+	end
+
+	screenGui.Parent = guiParent
+
+	local container = Instance.new("Frame")
+	container.AnchorPoint = Vector2.new(0.5, 0.5)
+	container.Position = UDim2.new(0.5, 0, 0.5, 0)
+	container.Size = UDim2.new(0, 420, 0, 140)
+	container.BackgroundColor3 = LOADER_THEME.PRIMARY_BG
+	container.BorderSizePixel = 0
+	container.Parent = screenGui
+
+	local containerCorner = Instance.new("UICorner")
+	containerCorner.CornerRadius = UDim.new(0, 8)
+	containerCorner.Parent = container
+
+	local containerStroke = Instance.new("UIStroke")
+	containerStroke.Color = LOADER_THEME.STROKE
+	containerStroke.Thickness = 1
+	containerStroke.Parent = container
+
+	local titleLabel = Instance.new("TextLabel")
+	titleLabel.BackgroundTransparency = 1
+	titleLabel.Position = UDim2.new(0, 16, 0, 12)
+	titleLabel.Size = UDim2.new(1, -32, 0, 18)
+	titleLabel.Text = "Afterglow UI"
+	titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+	titleLabel.Font = Enum.Font.GothamBold
+	titleLabel.TextSize = 13
+	titleLabel.TextColor3 = LOADER_THEME.TEXT_PRIMARY
+	titleLabel.Parent = container
+
+	local statusLabel = Instance.new("TextLabel")
+	statusLabel.BackgroundTransparency = 1
+	statusLabel.Position = UDim2.new(0, 16, 0, 40)
+	statusLabel.Size = UDim2.new(1, -32, 0, 18)
+	statusLabel.Text = "Starting..."
+	statusLabel.TextXAlignment = Enum.TextXAlignment.Left
+	statusLabel.Font = Enum.Font.Gotham
+	statusLabel.TextSize = 12
+	statusLabel.TextColor3 = LOADER_THEME.TEXT_SECONDARY
+	statusLabel.Parent = container
+
+	local barBackground = Instance.new("Frame")
+	barBackground.Position = UDim2.new(0, 16, 0, 82)
+	barBackground.Size = UDim2.new(1, -32, 0, 10)
+	barBackground.BackgroundColor3 = LOADER_THEME.TERTIARY_BG
+	barBackground.BorderSizePixel = 0
+	barBackground.Parent = container
+
+	local barCorner = Instance.new("UICorner")
+	barCorner.CornerRadius = UDim.new(0, 4)
+	barCorner.Parent = barBackground
+
+	local barFill = Instance.new("Frame")
+	barFill.Size = UDim2.new(0, 0, 1, 0)
+	barFill.BackgroundColor3 = LOADER_THEME.ACCENT
+	barFill.BorderSizePixel = 0
+	barFill.Parent = barBackground
+
+	local barFillCorner = Instance.new("UICorner")
+	barFillCorner.CornerRadius = UDim.new(0, 4)
+	barFillCorner.Parent = barFill
+
+	local currentProgress = 0
+	local targetProgress = 0
+
+	local function lerp(a, b, t)
+		return a + (b - a) * t
+	end
+
+	local heartbeat = RunService.RenderStepped:Connect(function(dt)
+		local alpha = math.clamp(dt * 8, 0, 1)
+		currentProgress = lerp(currentProgress, targetProgress, alpha)
+		barFill.Size = UDim2.new(currentProgress, 0, 1, 0)
+	end)
+
+	return {
+		setStatus = function(_, text)
+			statusLabel.Text = text or ""
+			statusLabel.TextColor3 = LOADER_THEME.TEXT_SECONDARY
+		end,
+		setError = function(_, text)
+			statusLabel.Text = text or ""
+			statusLabel.TextColor3 = LOADER_THEME.ACCENT
+		end,
+		setProgress = function(_, value)
+			targetProgress = math.clamp(value or 0, 0, 1)
+		end,
+		destroy = function()
+			if heartbeat then
+				heartbeat:Disconnect()
+				heartbeat = nil
+			end
+			if screenGui then
+				screenGui:Destroy()
+			end
+		end
+	}
+end
+
+local loaderUi = createLoaderUi()
+local totalSteps = 1
+local completedSteps = 0
+
+local function setTask(text)
+	if loaderUi then
+		loaderUi:setStatus(text)
+	end
+end
+
+local function setTotalSteps(count)
+	totalSteps = math.max(count or 1, 1)
+	if loaderUi then
+		loaderUi:setProgress(completedSteps / totalSteps)
+	end
+end
+
+local function advanceStep()
+	completedSteps = completedSteps + 1
+	if loaderUi then
+		loaderUi:setProgress(completedSteps / totalSteps)
+	end
+end
+
+-- Debug logging function (errors only)
+local function debugLog(level, message)
+	if level ~= "ERROR" then return end
+	if loaderUi and loaderUi.setError then
+		loaderUi:setError(message)
+	end
+	local timestamp = os.date("%H:%M:%S")
+	local prefix = "[Afterglow:ERROR] (" .. timestamp .. ")"
+	warn(prefix .. " " .. message)
 end
 
 -- Module cache
@@ -33,6 +206,7 @@ local function loadManifest()
 	end
 	
 	local manifestUrl = GITHUB_URL .. "/Afterglow/manifest.json"
+	setTask("Fetching manifest")
 	debugLog("INFO", "Attempting to fetch manifest from: " .. manifestUrl)
 	local success, result = pcall(function()
 		return game:HttpGet(manifestUrl)
@@ -43,6 +217,7 @@ local function loadManifest()
 		error("Failed to load manifest from GitHub: " .. tostring(result))
 	end
 	
+	setTask("Parsing manifest")
 	debugLog("INFO", "Manifest fetched successfully (" .. #result .. " bytes)")
 	
 	-- Simple JSON parser for manifest
@@ -213,12 +388,61 @@ local function loadModule(modulePath, pathMap)
 	return moduleErr
 end
 
+local function createDemoUi(Afterglow)
+	local window = Afterglow.CreateWindow({
+		Name = "Afterglow Demo",
+		Size = UDim2.new(0, 900, 0, 540)
+	})
+
+	local tab = window:CreateTab("Demo")
+	local groupbox = tab:CreateGroupbox({Name = "Quick Start"})
+
+	groupbox:AddLabel("Afterglow loaded successfully.")
+	groupbox:AddButton({
+		Text = "Print Hello",
+		Callback = function()
+			print("[Afterglow Demo] Button clicked")
+		end
+	})
+
+	groupbox:AddToggle({
+		Text = "Enable Glow",
+		Default = false,
+		Callback = function(value)
+			print("[Afterglow Demo] Glow:", value)
+		end
+	})
+
+	groupbox:AddSlider({
+		Text = "Intensity",
+		Min = 0,
+		Max = 100,
+		Default = 60,
+		Increment = 5,
+		Callback = function(value)
+			print("[Afterglow Demo] Intensity:", value)
+		end
+	})
+
+	groupbox:AddDropdown({
+		Text = "Mode",
+		Options = {"Standard", "Neon", "Minimal"},
+		Default = "Standard",
+		Callback = function(value)
+			print("[Afterglow Demo] Mode:", value)
+		end
+	})
+
+	task.wait(0.1)
+	if window.Tabs and #window.Tabs > 0 then
+		window:SelectTab(window.Tabs[1])
+	end
+
+	return window
+end
+
 -- Load all modules from manifest
 local function initializeLoader()
-	debugLog("INFO", "=== Afterglow Loader Initialization Starting ===")
-	debugLog("INFO", "GitHub Base URL: " .. GITHUB_URL)
-	
-	local overallStartTime = tick()
 	local manifestData = nil
 	local success, manifestErr = pcall(function()
 		manifestData = loadManifest()
@@ -228,16 +452,16 @@ local function initializeLoader()
 		debugLog("ERROR", "Critical: Failed to load manifest - " .. tostring(manifestErr))
 		error(tostring(manifestErr))
 	end
+
+	setTotalSteps(#manifestData.loadOrder + 2)
+	advanceStep()
 	
 	local pathMap = buildPathMap()
-	debugLog("INFO", "Path map built with " .. table.getn(pathMap) .. " entries")
-	
-	debugLog("INFO", "Starting load sequence for " .. #manifestData.loadOrder .. " modules...")
 	
 	-- Use the load order from manifest
-	local loadedCount = 0
-	for i, modulePath in ipairs(manifestData.loadOrder) do
+	for _, modulePath in ipairs(manifestData.loadOrder) do
 		if modulePath ~= "init" then  -- Skip init, load it last
+			setTask("Loading " .. modulePath)
 			local moduleStartTime = tick()
 			local success, result = pcall(function()
 				return loadModule(modulePath, pathMap)
@@ -245,25 +469,37 @@ local function initializeLoader()
 			
 			local loadTime = math.round((tick() - moduleStartTime) * 1000)
 			if success then
-				loadedCount = loadedCount + 1
-				debugLog("INFO", string.format("✓ [%d/%d] Loaded %s (%dms)", loadedCount, #manifestData.loadOrder - 1, modulePath, loadTime))
+				advanceStep()
 			else
-				debugLog("ERROR", string.format("✗ [%d/%d] Failed to load %s (%dms)", i, #manifestData.loadOrder, modulePath, loadTime))
+				debugLog("ERROR", string.format("[Loader] Failed to load %s (%dms)", modulePath, loadTime))
 				debugLog("ERROR", "Module load error details: " .. tostring(result))
-				error(string.format("[Afterglow] ✗ Failed to load %s: %s", modulePath, tostring(result)))
+				error(string.format("[Afterglow] Failed to load %s: %s", modulePath, tostring(result)))
 			end
 		end
 	end
 
 	-- Load init last
-	debugLog("INFO", "Loading main library (init.lua)...")
-	local initStartTime = tick()
+	setTask("Loading init")
 	local Afterglow = loadModule("init", pathMap)
-	local initLoadTime = math.round((tick() - initStartTime) * 1000)
-	
-	local totalTime = math.round((tick() - overallStartTime) * 1000)
-	debugLog("INFO", "✓ Init loaded successfully (" .. initLoadTime .. "ms)")
-	debugLog("INFO", "=== All modules loaded successfully in " .. totalTime .. "ms ===")
+	advanceStep()
+
+	setTask("Building demo UI")
+	local demoSuccess, demoErr = pcall(function()
+		createDemoUi(Afterglow)
+	end)
+	if not demoSuccess then
+		debugLog("ERROR", "Demo UI failed to load: " .. tostring(demoErr))
+		error("Demo UI failed to load: " .. tostring(demoErr))
+	end
+	advanceStep()
+
+	setTask("Done")
+	if loaderUi then
+		loaderUi:setProgress(1)
+		task.wait(0.2)
+		loaderUi:destroy()
+		loaderUi = nil
+	end
 	
 	return Afterglow
 end
@@ -272,3 +508,6 @@ end
 local Afterglow = initializeLoader()
 
 return Afterglow
+
+
+
