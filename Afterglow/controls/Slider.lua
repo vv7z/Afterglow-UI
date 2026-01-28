@@ -127,8 +127,7 @@ function Slider:_UpdateFromInput(trackBg, trackFill, thumb, valueLabel)
 	valueLabel = valueLabel or self.ValueLabel
 	
 	local mousePos = InputService:GetMouseLocation()
-	local GetGuiInset = game:GetService("GuiService"):GetGuiInset
-	local inset = GetGuiInset()
+	local inset = game:GetService("GuiService"):GetGuiInset()
 	mousePos = mousePos - inset
 	
 	local trackPos = trackBg.AbsolutePosition.X
