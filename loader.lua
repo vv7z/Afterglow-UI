@@ -441,6 +441,61 @@ local function createDemoUi(Afterglow)
 	return window
 end
 
+local function patchPopupManager(pathMap)
+	local ok, popupManager = pcall(function()
+		return loadModule("overlay/PopupManager", pathMap)
+	end)
+	if not ok or type(popupManager) ~= "table" or not popupManager._ConnectCloseHandlers then
+		return
+	end
+
+	popupManager._ConnectCloseHandlers = function(self)
+		local inputService = game:GetService("UserInputService")
+
+		inputService.InputBegan:Connect(function(input, gameProcessed)
+			if input.KeyCode == Enum.KeyCode.Escape then
+				self:CloseAll()
+			end
+		end)
+
+		local function bindOutsideClick(target)
+			if not target then
+				return
+			end
+			target:Connect(function(input, gameProcessed)
+				if input.UserInputType == Enum.UserInputType.MouseButton1 then
+					-- Check if click was outside any popup
+					local clickedPopup = false
+					for _, popup in ipairs(self.OpenPopups) do
+						if popup.Visible then
+							local mousePos = inputService:GetMouseLocation()
+							local objPos = popup.AbsolutePosition
+							local objSize = popup.AbsoluteSize
+
+							if mousePos.X >= objPos.X and mousePos.X <= objPos.X + objSize.X and
+							   mousePos.Y >= objPos.Y and mousePos.Y <= objPos.Y + objSize.Y then
+								clickedPopup = true
+								break
+							end
+						end
+					end
+
+					if not clickedPopup then
+						self:CloseAll()
+					end
+				end
+			end)
+		end
+
+		-- ScreenGui doesn't emit InputBegan, so fall back to UserInputService
+		if self.ScreenGui and self.ScreenGui.InputBegan then
+			bindOutsideClick(self.ScreenGui.InputBegan)
+		else
+			bindOutsideClick(inputService.InputBegan)
+		end
+	end
+end
+
 -- Load all modules from manifest
 local function initializeLoader()
 	local manifestData = nil
@@ -482,6 +537,8 @@ local function initializeLoader()
 	setTask("Loading init")
 	local Afterglow = loadModule("init", pathMap)
 	advanceStep()
+
+	patchPopupManager(pathMap)
 
 	setTask("Building demo UI")
 	local demoSuccess, demoErr = pcall(function()
