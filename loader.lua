@@ -1,54 +1,107 @@
--- Afterglow UI Library - Simple LoadString Loader
+-- Afterglow UI Library - Smart LoadString Loader
 -- Usage: local Afterglow = loadstring(game:HttpGet("https://raw.githubusercontent.com/vv7z/Afterglow-UI/main/loader.lua"))()
+-- This loader automatically reads the manifest to discover all modules without hardcoding
 
 local GITHUB_URL = "https://raw.githubusercontent.com/vv7z/Afterglow-UI/main"
 
 -- Module cache
 local cache = {}
 
--- Path mapping for requires
-local pathMap = {
-	["config.Constants"] = "config/Constants",
-	["config.Defaults"] = "config/Defaults",
-	["config.Theme"] = "config/Theme",
-	["services.TweenService"] = "services/TweenService",
-	["services.InputService"] = "services/InputService",
-	["services.RunService"] = "services/RunService",
-	["utils.Signal"] = "utils/Signal",
-	["utils.Text"] = "utils/Text",
-	["utils.Instances"] = "utils/Instances",
-	["utils.Math"] = "utils/Math",
-	["utils.Tween"] = "utils/Tween",
-	["input.Mouse"] = "input/Mouse",
-	["input.Drag"] = "input/Drag",
-	["input.KeybindListener"] = "input/KeybindListener",
-	["layout.Padding"] = "layout/Padding",
-	["layout.ColumnLayout"] = "layout/ColumnLayout",
-	["layout.AutoSize"] = "layout/AutoSize",
-	["overlay.HoverOverlay"] = "overlay/HoverOverlay",
-	["overlay.PopupManager"] = "overlay/PopupManager",
-	["overlay.ContextMenu"] = "overlay/ContextMenu",
-	["search.SearchIndex"] = "search/SearchIndex",
-	["search.SearchFilter"] = "search/SearchFilter",
-	["controls.mixins.ClickRipple"] = "controls/mixins/ClickRipple",
-	["controls.mixins.ColorPicker"] = "controls/mixins/ColorPicker",
-	["controls.mixins.HoverStroke"] = "controls/mixins/HoverStroke",
-	["controls.mixins.Keybind"] = "controls/mixins/Keybind",
-	["controls.Label"] = "controls/Label",
-	["controls.Button"] = "controls/Button",
-	["controls.Toggle"] = "controls/Toggle",
-	["controls.Checkbox"] = "controls/Checkbox",
-	["controls.Slider"] = "controls/Slider",
-	["controls.Dropdown"] = "controls/Dropdown",
-	["core.Groupbox"] = "core/Groupbox",
-	["core.Tab"] = "core/Tab",
-	["core.Window"] = "core/Window",
-	["core.Library"] = "core/Library",
-}
+-- Manifest cache
+local manifest = nil
 
-local function loadModule(modulePath)
-	if cache[modulePath] then
-		return cache[modulePath]
+-- Load and parse the manifest
+local function loadManifest()
+	if manifest then return manifest end
+	
+	local manifestUrl = GITHUB_URL .. "/Afterglow/manifest.json"
+	local success, result = pcall(function()
+		return game:HttpGet(manifestUrl)
+	end)
+	
+	if not success then
+		error("Failed to load manifest from GitHub: " .. tostring(result))
+	end
+	
+	-- Simple JSON parser for manifest
+	manifest = {}
+	manifest.modules = {}
+	manifest.loadOrder = {}
+	
+	-- Extract loadOrder array from JSON (more reliable)
+	local inLoadOrder = false
+	local lastQuote = 1
+	for i = 1, #result do
+		if result:sub(i, i + 8) == "loadOrder" then
+			inLoadOrder = true
+		end
+		if inLoadOrder and result:sub(i, i) == "[" then
+			-- Found the start of loadOrder array
+			local j = i + 1
+			while j < #result do
+				local char = result:sub(j, j)
+				if char == '"' then
+					local start = j + 1
+					j = j + 1
+					while j < #result and result:sub(j, j) ~= '"' do
+						j = j + 1
+					end
+					table.insert(manifest.loadOrder, result:sub(start, j - 1))
+				elseif char == "]" then
+					break
+				end
+				j = j + 1
+			end
+			break
+		end
+	end
+	
+	-- Fallback: extract all quoted strings if loadOrder parsing fails
+	if #manifest.loadOrder == 0 then
+		for modulePath in result:gmatch('"([^"]+)"') do
+			if not modulePath:find("version") and modulePath ~= "modules" and modulePath ~= "loadOrder" then
+				table.insert(manifest.loadOrder, modulePath)
+			end
+		end
+	end
+	
+	-- Build modules list from loadOrder
+	for _, path in ipairs(manifest.loadOrder) do
+		manifest.modules[path] = true
+	end
+	
+	return manifest
+end
+
+-- Convert module path to dot notation for require()
+local function pathToDots(filePath)
+	return filePath:gsub("/", ".")
+end
+
+-- Convert dot notation back to file path
+local function dotsToPath(moduleName)
+	return moduleName:gsub("%.", "/")
+end
+
+-- Build path map from manifest
+local function buildPathMap()
+	local manifestData = loadManifest()
+	local pathMap = {}
+	
+	for _, modulePath in ipairs(manifestData.loadOrder) do
+		local dotPath = pathToDots(modulePath)
+		pathMap[dotPath] = modulePath
+	end
+	
+	return pathMap
+end
+
+-- Load a single module from GitHub
+local function loadModule(modulePath, pathMap)
+	-- Check cache first
+	local cacheKey = modulePath
+	if cache[cacheKey] then
+		return cache[cacheKey]
 	end
 	
 	local url = GITHUB_URL .. "/Afterglow/" .. modulePath .. ".lua"
@@ -68,9 +121,9 @@ local function loadModule(modulePath)
 	-- Create environment with require function
 	local env = setmetatable({
 		require = function(path)
-			-- Handle relative path conversions
-			local mappedPath = pathMap[path] or path
-			return loadModule(mappedPath)
+			-- Convert dot notation to file path
+			local modulePath = pathMap[path] or dotsToPath(path)
+			return loadModule(modulePath, pathMap)
 		end,
 		script = {Parent = {Parent = {}}},  -- Fake script object
 		game = game,
@@ -108,72 +161,42 @@ local function loadModule(modulePath)
 		error("Module execution failed: " .. modulePath .. "\n" .. tostring(moduleErr))
 	end
 	
-	cache[modulePath] = moduleErr  -- moduleErr is actually the return value after pcall
+	cache[cacheKey] = moduleErr  -- moduleErr is actually the return value after pcall
 	return moduleErr
 end
 
--- Load order matters - dependencies first
-local modules = {}
+-- Load all modules from manifest
+local function initializeLoader()
+	print("[Afterglow] Loading manifest...")
+	local manifestData = loadManifest()
+	local pathMap = buildPathMap()
+	
+	print("[Afterglow] Loading " .. #manifestData.loadOrder .. " modules in order...")
+	
+	-- Use the load order from manifest
+	for i, modulePath in ipairs(manifestData.loadOrder) do
+		if modulePath ~= "init" then  -- Skip init, load it last
+			local success, result = pcall(function()
+				return loadModule(modulePath, pathMap)
+			end)
+			
+			if success then
+				print(string.format("[Afterglow] ✓ Loaded %d/%d: %s", i, #manifestData.loadOrder - 1, modulePath))
+			else
+				error(string.format("[Afterglow] ✗ Failed to load %s: %s", modulePath, tostring(result)))
+			end
+		end
+	end
+	
+	-- Load init last
+	print("[Afterglow] Loading main library...")
+	local Afterglow = loadModule("init", pathMap)
+	
+	print("[Afterglow] ✓ All modules loaded successfully!")
+	return Afterglow
+end
 
--- Config
-modules.Constants = loadModule("config/Constants")
-modules.Defaults = loadModule("config/Defaults")
-modules.Theme = loadModule("config/Theme")
-
--- Services  
-modules.TweenService = loadModule("services/TweenService")
-modules.InputService = loadModule("services/InputService")
-modules.RunService = loadModule("services/RunService")
-
--- Utils
-modules.Signal = loadModule("utils/Signal")
-modules.Text = loadModule("utils/Text")
-modules.Instances = loadModule("utils/Instances")
-modules.Math = loadModule("utils/Math")
-modules.Tween = loadModule("utils/Tween")
-
--- Input
-modules.Mouse = loadModule("input/Mouse")
-modules.Drag = loadModule("input/Drag")
-modules.KeybindListener = loadModule("input/KeybindListener")
-
--- Layout
-modules.Padding = loadModule("layout/Padding")
-modules.ColumnLayout = loadModule("layout/ColumnLayout")
-modules.AutoSize = loadModule("layout/AutoSize")
-
--- Overlay
-modules.HoverOverlay = loadModule("overlay/HoverOverlay")
-modules.PopupManager = loadModule("overlay/PopupManager")
-modules.ContextMenu = loadModule("overlay/ContextMenu")
-
--- Search
-modules.SearchIndex = loadModule("search/SearchIndex")
-modules.SearchFilter = loadModule("search/SearchFilter")
-
--- Controls - Mixins
-modules.ClickRipple = loadModule("controls/mixins/ClickRipple")
-modules.ColorPicker = loadModule("controls/mixins/ColorPicker")
-modules.HoverStroke = loadModule("controls/mixins/HoverStroke")
-modules.Keybind = loadModule("controls/mixins/Keybind")
-
--- Controls
-modules.Label = loadModule("controls/Label")
-modules.Button = loadModule("controls/Button")
-modules.Toggle = loadModule("controls/Toggle")
-modules.Checkbox = loadModule("controls/Checkbox")
-modules.Slider = loadModule("controls/Slider")
-modules.Dropdown = loadModule("controls/Dropdown")
-
--- Core
-modules.Groupbox = loadModule("core/Groupbox")
-modules.Tab = loadModule("core/Tab")
-modules.Window = loadModule("core/Window")
-modules.Library = loadModule("core/Library")
-
--- Main init
-local Afterglow = loadModule("init")
-
-print("[Afterglow] UI Library loaded successfully!")
+-- Initialize and return the library
+local Afterglow = initializeLoader()
 
 return Afterglow
