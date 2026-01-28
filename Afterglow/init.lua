@@ -6,7 +6,6 @@ Afterglow.__index = Afterglow
 
 -- Import core modules
 local Library = require("core.Library")
-end
 
 -- Quick start: Create a window
 function Afterglow.CreateWindow(config)
