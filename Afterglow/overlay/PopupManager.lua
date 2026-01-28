@@ -57,7 +57,7 @@ function PopupManager:_ConnectCloseHandlers()
 	end)
 	
 	-- Also close on click outside
-	self.ScreenGui.InputBegan:Connect(function(input, gameProcessed)
+	InputService.InputBegan:Connect(function(input, gameProcessed)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 then
 			-- Check if click was outside any popup
 			local clickedPopup = false
