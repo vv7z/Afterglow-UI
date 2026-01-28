@@ -458,41 +458,29 @@ local function patchPopupManager(pathMap)
 			end
 		end)
 
-		local function bindOutsideClick(target)
-			if not target then
-				return
-			end
-			target:Connect(function(input, gameProcessed)
-				if input.UserInputType == Enum.UserInputType.MouseButton1 then
-					-- Check if click was outside any popup
-					local clickedPopup = false
-					for _, popup in ipairs(self.OpenPopups) do
-						if popup.Visible then
-							local mousePos = inputService:GetMouseLocation()
-							local objPos = popup.AbsolutePosition
-							local objSize = popup.AbsoluteSize
+		inputService.InputBegan:Connect(function(input, gameProcessed)
+			if input.UserInputType == Enum.UserInputType.MouseButton1 then
+				-- Check if click was outside any popup
+				local clickedPopup = false
+				for _, popup in ipairs(self.OpenPopups) do
+					if popup.Visible then
+						local mousePos = inputService:GetMouseLocation()
+						local objPos = popup.AbsolutePosition
+						local objSize = popup.AbsoluteSize
 
-							if mousePos.X >= objPos.X and mousePos.X <= objPos.X + objSize.X and
-							   mousePos.Y >= objPos.Y and mousePos.Y <= objPos.Y + objSize.Y then
-								clickedPopup = true
-								break
-							end
+						if mousePos.X >= objPos.X and mousePos.X <= objPos.X + objSize.X and
+						   mousePos.Y >= objPos.Y and mousePos.Y <= objPos.Y + objSize.Y then
+							clickedPopup = true
+							break
 						end
 					end
-
-					if not clickedPopup then
-						self:CloseAll()
-					end
 				end
-			end)
-		end
 
-		-- ScreenGui doesn't emit InputBegan, so fall back to UserInputService
-		if self.ScreenGui and self.ScreenGui.InputBegan then
-			bindOutsideClick(self.ScreenGui.InputBegan)
-		else
-			bindOutsideClick(inputService.InputBegan)
-		end
+				if not clickedPopup then
+					self:CloseAll()
+				end
+			end
+		end)
 	end
 end
 
