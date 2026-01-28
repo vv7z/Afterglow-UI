@@ -3,9 +3,9 @@
 local Library = {}
 Library.__index = Library
 
-local Window = require(script.Parent.Window)
-local Tab = require(script.Parent.Tab)
-local Groupbox = require(script.Parent.Groupbox)
+local Window = require("core.Window")
+local Tab = require("core.Tab")
+local Groupbox = require("core.Groupbox")
 
 -- Label = require(script.Parent.Parent.controls.Label)
 -- Button = require(script.Parent.Parent.controls.Button)

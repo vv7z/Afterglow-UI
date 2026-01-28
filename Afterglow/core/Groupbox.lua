@@ -3,10 +3,10 @@
 local Groupbox = {}
 Groupbox.__index = Groupbox
 
-local Constants = require(script.Parent.Parent.config.Constants)
-local Defaults = require(script.Parent.Parent.config.Defaults)
+local Constants = require("config.Constants")
+local Defaults = require("config.Defaults")
 local TweenService = game:GetService("TweenService")
-local Instances = require(script.Parent.Parent.utils.Instances)
+local Instances = require("utils.Instances")
 
 -- Create a groupbox
 function Groupbox.new(config)

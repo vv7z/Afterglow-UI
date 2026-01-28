@@ -5,14 +5,7 @@ local Afterglow = {}
 Afterglow.__index = Afterglow
 
 -- Import core modules
-local Library = require(script.core.Library)
-
--- Re-export for convenience
-Afterglow.Library = Library
-
--- Create a new UI library instance
-function Afterglow.new(config)
-	return Library.new(config)
+local Library = require("core.Library")
 end
 
 -- Quick start: Create a window

@@ -3,7 +3,7 @@
 local Toggle = {}
 Toggle.__index = Toggle
 
-local Constants = require(script.Parent.Parent.config.Constants)
+local Constants = require("config.Constants")
 local TweenService = game:GetService("TweenService")
 
 -- Create a toggle

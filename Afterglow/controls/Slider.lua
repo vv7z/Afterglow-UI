@@ -3,7 +3,7 @@
 local Slider = {}
 Slider.__index = Slider
 
-local Constants = require(script.Parent.Parent.config.Constants)
+local Constants = require("config.Constants")
 local InputService = game:GetService("UserInputService")
 
 -- Create a slider

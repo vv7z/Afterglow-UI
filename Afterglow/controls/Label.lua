@@ -3,8 +3,7 @@
 local Label = {}
 Label.__index = Label
 
-local Constants = require(script.Parent.Parent.config.Constants)
-local Instances = require(script.Parent.Parent.utils.Instances)
+local Constants = require("config.Constants")
 
 -- Create a label
 function Label.new(config)

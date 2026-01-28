@@ -4,7 +4,7 @@ local ContextMenu = {}
 ContextMenu.__index = ContextMenu
 
 local InputService = game:GetService("UserInputService")
-local Instances = require(script.Parent.Parent.utils.Instances)
+local Instances = require("utils.Instances")
 
 -- Create a context menu
 function ContextMenu.new(screenGui)

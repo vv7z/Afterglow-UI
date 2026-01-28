@@ -3,16 +3,16 @@
 local Window = {}
 Window.__index = Window
 
-local Constants = require(script.Parent.Parent.config.Constants)
-local Defaults = require(script.Parent.Parent.config.Defaults)
-local Tab = require(script.Parent.Tab)
-local Groupbox = require(script.Parent.Groupbox)
-local Drag = require(script.Parent.Parent.input.Drag)
-local SearchFilter = require(script.Parent.Parent.search.SearchFilter)
-local ColumnLayout = require(script.Parent.Parent.layout.ColumnLayout)
-local HoverOverlay = require(script.Parent.Parent.overlay.HoverOverlay)
-local PopupManager = require(script.Parent.Parent.overlay.PopupManager)
-local RunService = require(script.Parent.Parent.services.RunService)
+local Constants = require("config.Constants")
+local Defaults = require("config.Defaults")
+local Tab = require("core.Tab")
+local Groupbox = require("core.Groupbox")
+local Drag = require("input.Drag")
+local SearchFilter = require("search.SearchFilter")
+local ColumnLayout = require("layout.ColumnLayout")
+local HoverOverlay = require("overlay.HoverOverlay")
+local PopupManager = require("overlay.PopupManager")
+local RunService = require("services.RunService")
 local TweenService = game:GetService("TweenService")
 
 -- Create a window

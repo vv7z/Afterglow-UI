@@ -3,11 +3,13 @@
 local Theme = {}
 Theme.__index = Theme
 
+local Constants = require("config.Constants")
+
 -- Default theme
 Theme.Current = {
 	name = "Default Dark",
-	colors = require(script.Parent.Constants).COLORS,
-	accent = require(script.Parent.Constants).ACCENT_COLOR,
+	colors = Constants.COLORS,
+	accent = Constants.ACCENT_COLOR,
 }
 
 -- Light theme
@@ -34,7 +36,11 @@ function Theme:Set(themeName)
 	if themeName == "light" then
 		self.Current = self.Light
 	else
-		self.Current = require(script.Parent.Constants)
+		self.Current = {
+			name = "Default Dark",
+			colors = Constants.COLORS,
+			accent = Constants.ACCENT_COLOR,
+		}
 	end
 end
 

@@ -3,8 +3,8 @@
 local Tab = {}
 Tab.__index = Tab
 
-local Constants = require(script.Parent.Parent.config.Constants)
-local Groupbox = require(script.Parent.Groupbox)
+local Constants = require("config.Constants")
+local Groupbox = require("core.Groupbox")
 local TweenService = game:GetService("TweenService")
 
 -- Create a tab
