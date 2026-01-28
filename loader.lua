@@ -388,7 +388,13 @@ local function loadModule(modulePath, pathMap)
 	return moduleErr
 end
 
-local function createDemoUi(Afterglow)
+local function createDemoUi(Afterglow, pathMap)
+	local Label = loadModule("controls/Label", pathMap)
+	local Button = loadModule("controls/Button", pathMap)
+	local Toggle = loadModule("controls/Toggle", pathMap)
+	local Slider = loadModule("controls/Slider", pathMap)
+	local Dropdown = loadModule("controls/Dropdown", pathMap)
+
 	local window = Afterglow.CreateWindow({
 		Name = "Afterglow Demo",
 		Size = UDim2.new(0, 900, 0, 540)
@@ -397,23 +403,26 @@ local function createDemoUi(Afterglow)
 	local tab = window:CreateTab("Demo")
 	local groupbox = tab:CreateGroupbox({Name = "Quick Start"})
 
-	groupbox:AddLabel("Afterglow loaded successfully.")
-	groupbox:AddButton({
+	groupbox:AddElement(Label.new({
+		Text = "Afterglow loaded successfully."
+	}))
+
+	groupbox:AddElement(Button.new({
 		Text = "Print Hello",
 		Callback = function()
 			print("[Afterglow Demo] Button clicked")
 		end
-	})
+	}))
 
-	groupbox:AddToggle({
+	groupbox:AddElement(Toggle.new({
 		Text = "Enable Glow",
 		Default = false,
 		Callback = function(value)
 			print("[Afterglow Demo] Glow:", value)
 		end
-	})
+	}))
 
-	groupbox:AddSlider({
+	groupbox:AddElement(Slider.new({
 		Text = "Intensity",
 		Min = 0,
 		Max = 100,
@@ -422,16 +431,16 @@ local function createDemoUi(Afterglow)
 		Callback = function(value)
 			print("[Afterglow Demo] Intensity:", value)
 		end
-	})
+	}))
 
-	groupbox:AddDropdown({
+	groupbox:AddElement(Dropdown.new({
 		Text = "Mode",
 		Options = {"Standard", "Neon", "Minimal"},
 		Default = "Standard",
 		Callback = function(value)
 			print("[Afterglow Demo] Mode:", value)
 		end
-	})
+	}))
 
 	task.wait(0.1)
 	if window.Tabs and #window.Tabs > 0 then
@@ -530,7 +539,7 @@ local function initializeLoader()
 
 	setTask("Building demo UI")
 	local demoSuccess, demoErr = pcall(function()
-		createDemoUi(Afterglow)
+		createDemoUi(Afterglow, pathMap)
 	end)
 	if not demoSuccess then
 		debugLog("ERROR", "Demo UI failed to load: " .. tostring(demoErr))
